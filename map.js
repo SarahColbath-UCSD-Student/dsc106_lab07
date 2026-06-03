@@ -72,6 +72,7 @@ map.on('load', async () => {
         );
         //const trips = csvData.data;
         const stations = computeStationTraffic(jsonData.data.stations);
+        let stationFlow = d3.scaleQuantize().domain([0, 1]).range([0, 0.5, 1]);
         const radiusScale = d3
             .scaleSqrt()
             .domain([0, d3.max(stations, (d) => d.totalTraffic)])
@@ -93,7 +94,10 @@ map.on('load', async () => {
                 .text(
                 `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`,
                 );
-            });
+            })  
+            .style('--departure-ratio', (d) =>
+                stationFlow(d.departures / d.totalTraffic),
+            );
         function updatePositions() {
             circles
                 .attr('cx', (d) => getCoords(d).cx) // Set the x-position using projected coordinates
@@ -120,7 +124,10 @@ map.on('load', async () => {
             circles
                 .data(filteredStations, (d) => d.short_name)
                 .join('circle') // Ensure the data is bound correctly
-                .attr('r', (d) => radiusScale(d.totalTraffic)); // Update circle sizes
+                .attr('r', (d) => radiusScale(d.totalTraffic)) // Update circle sizes
+                .style('--departure-ratio', (d) =>
+                    stationFlow(d.departures / d.totalTraffic),
+                );
         }
 
         function updateTimeDisplay() {
@@ -180,7 +187,7 @@ function computeStationTraffic(stations, timeFilter = -1) {
     let id = station.short_name;
     station.arrivals = arrivals.get(id) ?? 0;
     station.departures = departures.get(id) ?? 0;
-    station.totalTraffic = arrivals.get(id) ?? 0 + departures.get(id) ?? 0;
+    station.totalTraffic = station.arrivals + station.departures;
     return station;
   });
 }

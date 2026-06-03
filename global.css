@@ -8,3 +8,19 @@ body {
   margin: auto;
   padding: 1em;
 }
+
+header {
+  display: flex;
+  gap: 1em;
+  align-items: baseline;
+  margin-left: auto;
+
+  time, em {
+    display: block;
+  }
+
+  em {
+    color:rgb(148, 148, 148);
+    font-style: italic;
+  }
+}
