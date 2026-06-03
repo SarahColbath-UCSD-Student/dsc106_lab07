@@ -71,7 +71,7 @@ map.on('load', async () => {
             },
         );
         //const trips = csvData.data;
-        const stations = computeStationTraffic(jsonData.data.stations, trips);
+        const stations = computeStationTraffic(jsonData.data.stations);
         const radiusScale = d3
             .scaleSqrt()
             .domain([0, d3.max(stations, (d) => d.totalTraffic)])
@@ -111,10 +111,10 @@ map.on('load', async () => {
 
         function updateScatterPlot(timeFilter) {
             // Get only the trips that match the selected time filter
-            const filteredTrips = filterTripsbyTime(trips, timeFilter);
+            //const filteredTrips = filterTripsbyTime(trips, timeFilter);
 
             // Recompute station traffic based on the filtered trips
-            const filteredStations = computeStationTraffic(stations, filteredTrips);
+            const filteredStations = computeStationTraffic(stations, timeFilter);
             timeFilter === -1 ? radiusScale.range([0, 25]) : radiusScale.range([3, 50]);
             // Update the scatterplot by adjusting the radius of circles
             circles
@@ -125,7 +125,6 @@ map.on('load', async () => {
 
         function updateTimeDisplay() {
             let timeFilter = Number(timeSlider.value); // Get slider value
-            console.log(timeSlider);
             if (timeFilter === -1) {
                 selectedTime.textContent = ''; // Clear time display
                 anyTimeLabel.style.display = 'block'; // Show "(any time)"
@@ -162,17 +161,17 @@ function getCoords(station) {
     return { cx: x, cy: y }; // Return as object for use in SVG attributes
 }
 
-function computeStationTraffic(stations, trips) {
+function computeStationTraffic(stations, timeFilter = -1) {
   // Compute departures
     const departures = d3.rollup(
-        trips,
+        filterByMinute(departuresByMinute, timeFilter), // Efficient retrieval
         (v) => v.length,
         (d) => d.start_station_id,
     );
 
   // Computed arrivals as you did in step 4.2
     const arrivals = d3.rollup(
-        trips,
+        filterByMinute(arrivalsByMinute, timeFilter), // Efficient retrieval
         (v) => v.length,
         (d) => d.end_station_id,
     );
@@ -204,4 +203,23 @@ function filterTripsbyTime(trips, timeFilter) {
           Math.abs(endedMinutes - timeFilter) <= 60
         );
       });
+}
+
+function filterByMinute(tripsByMinute, minute) {
+  if (minute === -1) {
+    return tripsByMinute.flat(); // No filtering, return all trips
+  }
+
+  // Normalize both min and max minutes to the valid range [0, 1439]
+  let minMinute = (minute - 60 + 1440) % 1440;
+  let maxMinute = (minute + 60) % 1440;
+
+  // Handle time filtering across midnight
+  if (minMinute > maxMinute) {
+    let beforeMidnight = tripsByMinute.slice(minMinute);
+    let afterMidnight = tripsByMinute.slice(0, maxMinute);
+    return beforeMidnight.concat(afterMidnight).flat();
+  } else {
+    return tripsByMinute.slice(minMinute, maxMinute).flat();
+  }
 }
